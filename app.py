@@ -52,14 +52,20 @@ if pagina == "🏠 Home":
     with col1:
         st.image(
             "https://aulavirtualdmc.com/learning/pluginfile.php/88512/course/overviewfiles/perfil%20dmc%20institute%20redes%20dark.png",
-            width=240
+            use_container_width=True
         )
     with col2:
         st.markdown("""
-**👤 Estudiante:** Tu Nombre Completo  
+**👤 Estudiante:** Paulo Marcelo Tapia Loor  
+
+Soy estudiante de Ingeniería en Computación en la ESPOL, tengo 23 años y me interesa especialmente la ciberseguridad y el análisis de datos. Me motiva enfrentar nuevos retos, aprender constantemente y aplicar mis conocimientos en la resolución de problemas reales. Aunque a veces el miedo esté presente, lo utilizo como impulso para seguir avanzando y mejorar cada día, buscando siempre crecer dentro del área tecnológica.
+
 **📚 Módulo:** Python Fundamentals  
 **🏫 Institución:** DMC Institute  
 **📅 Año:** 2025  
+
+🔗 **LinkedIn:** [www.linkedin.com/in/paulotapialoor](https://www.linkedin.com/in/paulotapialoor)  
+💻 **GitHub:** [github.com/Pamatalo05](https://github.com/Pamatalo05)  
 """)
 
     st.markdown("---")
