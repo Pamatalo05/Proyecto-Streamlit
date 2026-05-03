@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import firebase_admin
-from firebase_admin import credentials, firestore
 
 from libreria_funciones_proyecto1 import (
     calcular_punto_equilibrio, calcular_margen_neto,
@@ -20,24 +18,7 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────────────────────────
-# CONEXIÓN A FIREBASE
-# Las credenciales se leen desde .streamlit/secrets.toml
-# ─────────────────────────────────────────────────────────────────
-@st.cache_resource
-def init_firebase():
-    if not firebase_admin._apps:
-        cred = credentials.Certificate(dict(st.secrets["firebase"]))
-        firebase_admin.initialize_app(cred)
-    return firestore.client()
-
-try:
-    db = init_firebase()
-    FIREBASE_OK = True
-except Exception:
-    FIREBASE_OK = False
-
-# ─────────────────────────────────────────────────────────────────
-# COLORES POR CATEGORÍA
+# COLORES POR CATEGORÍA (Ejercicio 2)
 # ─────────────────────────────────────────────────────────────────
 COLORES_CATEGORIA = {
     "Electrónico": "#FFF176",   # Amarillo
@@ -54,11 +35,6 @@ def colorear_fila(row):
 # ─────────────────────────────────────────────────────────────────
 # MENÚ LATERAL
 # ─────────────────────────────────────────────────────────────────
-if FIREBASE_OK:
-    st.sidebar.success("🔥 Firebase conectado")
-else:
-    st.sidebar.warning("⚠️ Firebase no configurado – datos solo en sesión")
-
 pagina = st.sidebar.selectbox(
     "📂 Navegación",
     ["🏠 Home", "📋 Ejercicio 1", "📦 Ejercicio 2", "🔢 Ejercicio 3", "👤 Ejercicio 4"]
@@ -92,43 +68,32 @@ if pagina == "🏠 Home":
         "Esta aplicación interactiva integra los conceptos fundamentales del Módulo 1: "
         "variables, estructuras de datos, control de flujo, funciones, "
         "programación funcional y programación orientada a objetos (POO). "
-        "Todos los datos se persisten en tiempo real con Firebase Firestore."
+        "Cada ejercicio representa una sección independiente conectada a través del menú lateral."
     )
+
     st.markdown("### 🛠️ Tecnologías utilizadas")
     st.markdown("""
 - 🐍 **Python 3**
 - 📊 **Streamlit** – Interfaz web interactiva
 - 🔢 **NumPy** – Manejo de arrays
 - 🐼 **Pandas** – DataFrames y tablas
-- 🔥 **Firebase Firestore** – Base de datos en tiempo real
 - 📦 Librerías del curso: `libreria_funciones_proyecto1.py` · `libreria_clases_proyecto1.py`
 """)
 
 
 # ═══════════════════════════════════════════════════════════════
-# EJERCICIO 1 – Flujo de caja con listas + Firebase
+# EJERCICIO 1 – Flujo de caja con listas
 # ═══════════════════════════════════════════════════════════════
 elif pagina == "📋 Ejercicio 1":
     st.title("📋 Ejercicio 1 – Flujo de Caja")
     st.markdown("""
-> Registra ingresos y gastos. El saldo final indica si el flujo está  
-> **a favor** o **en contra**. Datos guardados en 🔥 Firebase.
+> Registra tus ingresos y gastos. La aplicación calcula el saldo final  
+> e indica si el flujo de caja está **a favor** o **en contra**.
 """)
     st.markdown("---")
 
-    # Cargar desde Firebase la primera vez
     if "movimientos" not in st.session_state:
         st.session_state.movimientos = []
-        if FIREBASE_OK:
-            docs = db.collection("flujo_caja").order_by("timestamp").stream()
-            for doc in docs:
-                d = doc.to_dict()
-                st.session_state.movimientos.append({
-                    "Concepto":  d.get("concepto", ""),
-                    "Tipo":      d.get("tipo", ""),
-                    "Valor ($)": d.get("valor", 0.0),
-                    "_id":       doc.id
-                })
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -142,31 +107,17 @@ elif pagina == "📋 Ejercicio 1":
         if concepto.strip() == "":
             st.warning("⚠️ Por favor ingresa un concepto.")
         else:
-            import datetime
-            nuevo = {
+            st.session_state.movimientos.append({
                 "Concepto":  concepto.strip(),
                 "Tipo":      tipo,
-                "Valor ($)": round(valor, 2),
-                "_id":       None
-            }
-            if FIREBASE_OK:
-                ref = db.collection("flujo_caja").add({
-                    "concepto":  concepto.strip(),
-                    "tipo":      tipo,
-                    "valor":     round(valor, 2),
-                    "timestamp": datetime.datetime.utcnow()
-                })
-                nuevo["_id"] = ref[1].id
-            st.session_state.movimientos.append(nuevo)
+                "Valor ($)": round(valor, 2)
+            })
             st.success(f"✅ Movimiento '{concepto}' agregado.")
 
     st.markdown("---")
 
     if st.session_state.movimientos:
-        df = pd.DataFrame([
-            {k: v for k, v in m.items() if k != "_id"}
-            for m in st.session_state.movimientos
-        ])
+        df = pd.DataFrame(st.session_state.movimientos)
         st.subheader("📄 Movimientos registrados")
         st.dataframe(df, use_container_width=True)
 
@@ -186,9 +137,6 @@ elif pagina == "📋 Ejercicio 1":
             st.error(f"❌ El flujo de caja está **en contra** con un déficit de ${abs(saldo_final):,.2f}")
 
         if st.button("🗑️ Limpiar movimientos"):
-            if FIREBASE_OK:
-                for doc in db.collection("flujo_caja").stream():
-                    doc.reference.delete()
             st.session_state.movimientos = []
             st.rerun()
     else:
@@ -196,13 +144,13 @@ elif pagina == "📋 Ejercicio 1":
 
 
 # ═══════════════════════════════════════════════════════════════
-# EJERCICIO 2 – NumPy + colores por categoría + Firebase
+# EJERCICIO 2 – NumPy + colores por categoría
 # ═══════════════════════════════════════════════════════════════
 elif pagina == "📦 Ejercicio 2":
     st.title("📦 Ejercicio 2 – Registro de Productos")
     st.markdown("""
-> Registra productos con **arrays NumPy**. La tabla se colorea por **categoría**.  
-> Datos guardados en 🔥 Firebase.
+> Registra productos usando **arrays de NumPy**. La tabla se colorea  
+> automáticamente según la **categoría** de cada producto.
 """)
     st.markdown("---")
 
@@ -218,23 +166,11 @@ elif pagina == "📦 Ejercicio 2":
         )
     st.markdown("---")
 
-    # Cargar desde Firebase la primera vez
-    if "arr_nombre" not in st.session_state:
-        st.session_state.arr_nombre    = np.array([], dtype=str)
-        st.session_state.arr_categoria = np.array([], dtype=str)
-        st.session_state.arr_precio    = np.array([], dtype=float)
-        st.session_state.arr_cantidad  = np.array([], dtype=int)
-        st.session_state.arr_ids       = []
-
-        if FIREBASE_OK:
-            docs = db.collection("productos").order_by("timestamp").stream()
-            for doc in docs:
-                d = doc.to_dict()
-                st.session_state.arr_nombre    = np.append(st.session_state.arr_nombre,    d.get("nombre", ""))
-                st.session_state.arr_categoria = np.append(st.session_state.arr_categoria, d.get("categoria", ""))
-                st.session_state.arr_precio    = np.append(st.session_state.arr_precio,    float(d.get("precio", 0)))
-                st.session_state.arr_cantidad  = np.append(st.session_state.arr_cantidad,  int(d.get("cantidad", 0)))
-                st.session_state.arr_ids.append(doc.id)
+    # Inicializar arrays
+    if "arr_nombre"    not in st.session_state: st.session_state.arr_nombre    = np.array([], dtype=str)
+    if "arr_categoria" not in st.session_state: st.session_state.arr_categoria = np.array([], dtype=str)
+    if "arr_precio"    not in st.session_state: st.session_state.arr_precio    = np.array([], dtype=float)
+    if "arr_cantidad"  not in st.session_state: st.session_state.arr_cantidad  = np.array([], dtype=int)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -248,23 +184,10 @@ elif pagina == "📦 Ejercicio 2":
         if p_nombre.strip() == "":
             st.warning("⚠️ Ingresa el nombre del producto.")
         else:
-            import datetime
-            doc_id = None
-            if FIREBASE_OK:
-                ref = db.collection("productos").add({
-                    "nombre":    p_nombre.strip(),
-                    "categoria": p_categoria,
-                    "precio":    round(p_precio, 2),
-                    "cantidad":  int(p_cantidad),
-                    "timestamp": datetime.datetime.utcnow()
-                })
-                doc_id = ref[1].id
-
             st.session_state.arr_nombre    = np.append(st.session_state.arr_nombre,    p_nombre.strip())
             st.session_state.arr_categoria = np.append(st.session_state.arr_categoria, p_categoria)
             st.session_state.arr_precio    = np.append(st.session_state.arr_precio,    p_precio)
             st.session_state.arr_cantidad  = np.append(st.session_state.arr_cantidad,  int(p_cantidad))
-            st.session_state.arr_ids.append(doc_id)
             st.success(f"✅ Producto '{p_nombre}' ({p_categoria}) agregado.")
 
     st.markdown("---")
@@ -293,10 +216,7 @@ elif pagina == "📦 Ejercicio 2":
         col2.metric("💰 Valor total inventario", f"${df_prod['Total ($)'].sum():,.2f}")
 
         if st.button("🗑️ Limpiar inventario"):
-            if FIREBASE_OK:
-                for doc in db.collection("productos").stream():
-                    doc.reference.delete()
-            for key in ["arr_nombre", "arr_categoria", "arr_precio", "arr_cantidad", "arr_ids"]:
+            for key in ["arr_nombre", "arr_categoria", "arr_precio", "arr_cantidad"]:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
@@ -305,24 +225,18 @@ elif pagina == "📦 Ejercicio 2":
 
 
 # ═══════════════════════════════════════════════════════════════
-# EJERCICIO 3 – Funciones + Firebase
+# EJERCICIO 3 – Funciones desde librería externa
 # ═══════════════════════════════════════════════════════════════
 elif pagina == "🔢 Ejercicio 3":
     st.title("🔢 Ejercicio 3 – Calculadora Financiera")
     st.markdown("""
 > Selecciona una función de la **librería del profesor**, ingresa  
-> los parámetros y ejecuta. El histórico se guarda en 🔥 Firebase.
+> los parámetros y ejecuta. El resultado se guarda en un **histórico**.
 """)
     st.markdown("---")
 
     if "hist_func" not in st.session_state:
         st.session_state.hist_func = []
-        if FIREBASE_OK:
-            docs = db.collection("historico_funciones").order_by("timestamp").stream()
-            for doc in docs:
-                d = doc.to_dict()
-                d.pop("timestamp", None)
-                st.session_state.hist_func.append(d)
 
     funcion = st.selectbox("📌 Selecciona la función", [
         "Punto de Equilibrio",
@@ -411,51 +325,34 @@ elif pagina == "🔢 Ejercicio 3":
         fila.update(resultado)
         st.session_state.hist_func.append(fila)
 
-        if FIREBASE_OK:
-            import datetime
-            db.collection("historico_funciones").add({**fila, "timestamp": datetime.datetime.utcnow()})
-
     if st.session_state.hist_func:
         st.markdown("---")
         st.subheader("🗂️ Histórico de cálculos")
         st.dataframe(pd.DataFrame(st.session_state.hist_func), use_container_width=True)
         if st.button("🗑️ Limpiar histórico"):
-            if FIREBASE_OK:
-                for doc in db.collection("historico_funciones").stream():
-                    doc.reference.delete()
             st.session_state.hist_func = []
             st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════════
-# EJERCICIO 4 – Clases CRUD + Firebase
+# EJERCICIO 4 – Clases CRUD (Empleado)
 # ═══════════════════════════════════════════════════════════════
 elif pagina == "👤 Ejercicio 4":
     st.title("👤 Ejercicio 4 – Gestión de Empleados (CRUD)")
     st.markdown("""
-> Usa la clase **`Empleado`** con operaciones  
-> **Crear · Leer · Actualizar · Eliminar**. Datos en 🔥 Firebase.
+> Usa la clase **`Empleado`** para gestionar empleados con  
+> operaciones **Crear · Leer · Actualizar · Eliminar**.
 """)
     st.markdown("---")
 
-    if "empleados" not in st.session_state:
-        st.session_state.empleados = {}
-        if FIREBASE_OK:
-            for doc in db.collection("empleados").stream():
-                d = doc.to_dict()
-                st.session_state.empleados[doc.id] = {
-                    "nombre":       d.get("nombre", ""),
-                    "salario_base": d.get("salario_base", 0.0),
-                    "bono":         d.get("bono", 0.0),
-                    "descuento":    d.get("descuento", 0.0),
-                    "salario_neto": d.get("salario_neto", 0.0)
-                }
+    if "empleados"        not in st.session_state: st.session_state.empleados        = {}
+    if "emp_id_counter"   not in st.session_state: st.session_state.emp_id_counter   = 1
 
     tab_crear, tab_ver, tab_editar, tab_eliminar = st.tabs(
         ["➕ Crear", "📋 Ver", "✏️ Actualizar", "🗑️ Eliminar"]
     )
 
-    # CREAR
+    # ── CREAR ────────────────────────────────────────────────────
     with tab_crear:
         st.subheader("Registrar nuevo empleado")
         c1, c2 = st.columns(2)
@@ -470,25 +367,14 @@ elif pagina == "👤 Ejercicio 4":
             else:
                 try:
                     emp = Empleado(nombre_c.strip(), salario_c, bono_c, desc_c)
-                    resumen = emp.resumen()
-                    if FIREBASE_OK:
-                        ref = db.collection("empleados").add({
-                            "nombre":       resumen["nombre"],
-                            "salario_base": resumen["salario_base"],
-                            "bono":         resumen["bono"],
-                            "descuento":    resumen["descuento"],
-                            "salario_neto": resumen["salario_neto"]
-                        })
-                        eid = ref[1].id
-                    else:
-                        import uuid
-                        eid = str(uuid.uuid4())[:8]
-                    st.session_state.empleados[eid] = resumen
-                    st.success(f"✅ Empleado **{nombre_c}** guardado.")
+                    eid = st.session_state.emp_id_counter
+                    st.session_state.empleados[eid] = emp.resumen()
+                    st.session_state.emp_id_counter += 1
+                    st.success(f"✅ Empleado **{nombre_c}** guardado con ID #{eid}.")
                 except ValueError as e:
                     st.error(f"Error: {e}")
 
-    # VER
+    # ── VER ──────────────────────────────────────────────────────
     with tab_ver:
         st.subheader("Lista de empleados")
         if st.session_state.empleados:
@@ -501,13 +387,13 @@ elif pagina == "👤 Ejercicio 4":
         else:
             st.info("No hay empleados registrados aún.")
 
-    # ACTUALIZAR
+    # ── ACTUALIZAR ───────────────────────────────────────────────
     with tab_editar:
         st.subheader("Actualizar empleado")
         if st.session_state.empleados:
             sel_id     = st.selectbox("Selecciona empleado (ID)", list(st.session_state.empleados.keys()), key="upd_id")
             emp_actual = st.session_state.empleados[sel_id]
-            c1, c2 = st.columns(2)
+            c1, c2    = st.columns(2)
             nuevo_nombre  = c1.text_input("Nuevo nombre", value=emp_actual["nombre"], key="u_nom")
             nuevo_salario = c2.number_input("Nuevo salario base ($)", min_value=0.01, value=float(emp_actual["salario_base"]), step=50.0, key="u_sal")
             bono_pct      = round(emp_actual["bono"] / emp_actual["salario_base"] * 100, 2) if emp_actual["salario_base"] else 0.0
@@ -520,23 +406,14 @@ elif pagina == "👤 Ejercicio 4":
                 else:
                     try:
                         emp_upd = Empleado(nuevo_nombre.strip(), nuevo_salario, nuevo_bono, nuevo_desc)
-                        resumen_upd = emp_upd.resumen()
-                        if FIREBASE_OK:
-                            db.collection("empleados").document(sel_id).set({
-                                "nombre":       resumen_upd["nombre"],
-                                "salario_base": resumen_upd["salario_base"],
-                                "bono":         resumen_upd["bono"],
-                                "descuento":    resumen_upd["descuento"],
-                                "salario_neto": resumen_upd["salario_neto"]
-                            })
-                        st.session_state.empleados[sel_id] = resumen_upd
+                        st.session_state.empleados[sel_id] = emp_upd.resumen()
                         st.success("✅ Empleado actualizado correctamente.")
                     except ValueError as e:
                         st.error(f"Error: {e}")
         else:
             st.info("No hay empleados para actualizar.")
 
-    # ELIMINAR
+    # ── ELIMINAR ─────────────────────────────────────────────────
     with tab_eliminar:
         st.subheader("Eliminar empleado")
         if st.session_state.empleados:
@@ -544,8 +421,6 @@ elif pagina == "👤 Ejercicio 4":
             nombre_del = st.session_state.empleados[del_id]["nombre"]
             st.write(f"Vas a eliminar a: **{nombre_del}**")
             if st.button("🗑️ Confirmar eliminación", type="primary"):
-                if FIREBASE_OK:
-                    db.collection("empleados").document(del_id).delete()
                 del st.session_state.empleados[del_id]
                 st.success(f"✅ Empleado **{nombre_del}** eliminado.")
                 st.rerun()
