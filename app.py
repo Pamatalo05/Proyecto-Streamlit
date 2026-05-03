@@ -51,8 +51,8 @@ if pagina == "🏠 Home":
     col1, col2 = st.columns([1, 2])
     with col1:
         st.image(
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python-logo-notext.svg/240px-Python-logo-notext.svg.png",
-            width=130
+            "https://aulavirtualdmc.com/learning/pluginfile.php/88512/course/overviewfiles/perfil%20dmc%20institute%20redes%20dark.png",
+            width=240
         )
     with col2:
         st.markdown("""
