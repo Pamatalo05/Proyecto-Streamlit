@@ -68,6 +68,3 @@ Incluye cálculo de salario neto con bonos y descuentos.
 - Pandas  
 - NumPy  
 
----
-
-## 📂 Estructura del proyecto
