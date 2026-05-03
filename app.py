@@ -21,11 +21,11 @@ st.set_page_config(
 # COLORES POR CATEGORÍA (Ejercicio 2)
 # ─────────────────────────────────────────────────────────────────
 COLORES_CATEGORIA = {
-    "Electrónico": "#FFF176",   # Amarillo
-    "Alimento":    "#C8E6C9",   # Verde
-    "Ropa":        "#BBDEFB",   # Azul
-    "Hogar":       "#FFE0B2",   # Naranja
-    "Otro":        "#E1BEE7",   # Morado
+    "Electrónico": "#00E5FF",  # Cian brillante
+    "Alimento":    "#00FF9C",  # Verde neón
+    "Ropa":        "#2979FF",  # Azul intenso
+    "Hogar":       "#FF9100",  # Naranja fuerte
+    "Otro":        "#D500F9",  # Morado neón
 }
 
 def colorear_fila(row):
